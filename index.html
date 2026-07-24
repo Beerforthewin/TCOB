@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>LOOP LINE — grayscale articulated bus POC</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%23111'/><rect x='2' y='5' width='7' height='6' fill='%23f0f0f0'/><rect x='10' y='5' width='4' height='6' fill='%23f0f0f0'/></svg>">
+<link rel="stylesheet" href="./style.css">
+<script type="importmap">
+{ "imports": {
+    "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="hud">
+  <div class="panel" id="score">
+    <div class="k">DELIVERED</div>
+    <div id="delivered">0</div>
+    <div class="row"><span class="k">ONBOARD</span><span id="onboard">0 / 24</span></div>
+    <div id="onboardBarWrap"><div id="onboardBar"></div></div>
+    <div class="row"><span class="k">SPEED</span><span><span id="speed">0</span> km/h · <span id="gear">D</span></span></div>
+  </div>
+  <div class="panel" id="prompt" hidden></div>
+  <div id="legend">W throttle · S brake / reverse<br>A / D steer · SPACE handbrake<br>Q / E rotate view · R reset</div>
+</div>
+<div id="vignette"></div>
+
+<div id="touch" hidden>
+  <div id="swipeZone"><span id="swipeHint">&#9668; SWIPE TO ROTATE VIEW &#9658;</span></div>
+  <div id="stickZone"></div>
+  <div id="stickBase"><div id="stickKnob"></div></div>
+  <div id="pedals">
+    <div id="brakePad" class="pedal"><span>BRAKE</span></div>
+    <div id="gasPad" class="pedal"><span>GAS</span></div>
+  </div>
+  <button id="resetBtn" type="button">R</button>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

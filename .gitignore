@@ -1,0 +1,17 @@
+# scratch / tooling dirs (not part of the project)
+.tmp/
+.agents/
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# editors
+.vscode/
+.idea/
+*.swp
+
+# not used (no build step) — guard only
+node_modules/

@@ -1,0 +1,248 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: #0a0a0a;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.touch-mode { touch-action: none; }
+
+canvas { display: block; }
+
+/* ---------- HUD ---------- */
+
+#hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  color: #ececec;
+  user-select: none;
+}
+
+.panel {
+  position: absolute;
+  background: rgba(8, 8, 8, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  padding: 10px 14px;
+  backdrop-filter: blur(2px);
+}
+
+#score {
+  top: 16px;
+  left: 16px;
+  min-width: 220px;
+}
+
+#score .k {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  opacity: 0.65;
+}
+
+#delivered {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.1;
+  margin-bottom: 8px;
+}
+
+#score .row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+#onboardBarWrap {
+  height: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  margin-top: 4px;
+}
+
+#onboardBar {
+  height: 100%;
+  width: 0%;
+  background: #dedede;
+  transition: width 0.15s linear;
+}
+
+#score.full #onboardBarWrap { border-color: #ffffff; }
+#score.full #onboardBar {
+  background: repeating-linear-gradient(45deg, #f0f0f0 0 4px, #7a7a7a 4px 8px);
+}
+
+#prompt {
+  bottom: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+#legend {
+  position: absolute;
+  bottom: 14px;
+  right: 16px;
+  font-size: 11px;
+  line-height: 1.7;
+  text-align: right;
+  opacity: 0.5;
+}
+
+#vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.30) 100%);
+}
+
+/* ---------- touch controls (hidden unless a coarse pointer, or ?touch=1) ---------- */
+
+#touch {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+
+/* middle band: horizontal swipes here step the isometric view 90°.
+   Sits strictly above the stick zone (20%–55% vs. bottom 45%) so the two
+   never fight over a touch. */
+#swipeZone {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 20%;
+  height: 35%;
+  pointer-events: auto;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#swipeHint {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: rgba(255, 255, 255, 0.28);
+  transition: opacity 0.6s ease;
+  pointer-events: none;
+}
+
+#swipeZone.used #swipeHint { opacity: 0; }
+
+/* invisible catch area — the stick floats to wherever the thumb lands */
+#stickZone {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 50%;
+  height: 45%;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* horizontal capsule: steering only, so the knob never leaves the X axis */
+#stickBase {
+  position: absolute;
+  width: min(38vmin, 260px);
+  height: min(15vmin, 100px);
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.20);
+  background: rgba(0, 0, 0, 0.16);
+  transform: translate(-50%, -50%);
+  opacity: 0.30;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
+}
+
+#touch.stick-active #stickBase { opacity: 0.88; }
+
+#stickBase::before, #stickBase::after {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+}
+#stickBase::before { content: '◄'; left: 10px; }
+#stickBase::after  { content: '►'; right: 10px; }
+
+#stickKnob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(13vmin, 86px);
+  height: min(13vmin, 86px);
+  border-radius: 50%;
+  background: rgba(235, 235, 235, 0.26);
+  border: 1.5px solid rgba(255, 255, 255, 0.42);
+  transform: translate(-50%, -50%);
+}
+
+/* pedals: BRAKE inboard, GAS outermost under the resting thumb */
+#pedals {
+  position: absolute;
+  right: max(3vmin, env(safe-area-inset-right));
+  bottom: max(4vmin, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: flex-end;
+  gap: 2.2vmin;
+  pointer-events: none;
+}
+
+.pedal {
+  width: min(20vmin, 130px);
+  height: min(26vmin, 165px);
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.16);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  color: rgba(255, 255, 255, 0.60);
+  opacity: 0.34;
+  transition: opacity 0.12s ease, background 0.12s ease, transform 0.08s ease;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+#gasPad { height: min(31vmin, 196px); }   /* taller: it's held most of the time */
+
+.pedal.on {
+  opacity: 0.95;
+  background: rgba(255, 255, 255, 0.16);
+  transform: scale(0.97);
+}
+
+/* no keyboard on a phone, so keep a way to un-stick the bus */
+#resetBtn {
+  position: absolute;
+  top: max(2.5vmin, env(safe-area-inset-top));
+  right: max(3vmin, env(safe-area-inset-right));
+  pointer-events: auto;
+  touch-action: none;
+  width: 44px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.30);
+  color: rgba(255, 255, 255, 0.65);
+  font: 13px/1 ui-monospace, monospace;
+  opacity: 0.35;
+  transition: opacity 0.12s ease, background 0.12s ease;
+}
+
+#resetBtn.on { opacity: 0.95; background: rgba(255, 255, 255, 0.16); }
+
+body.touch-mode #legend { display: none; }
+body.touch-mode #prompt { bottom: min(34vmin, 215px); }
