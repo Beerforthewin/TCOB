@@ -1,4 +1,4 @@
-# Isometric Grayscale Bus Sim — Build Plan
+# THE CIRCLE OF BUS — Build Plan
 
 Proof-of-concept: drive an articulated bus around a suburban block loop, pick up and drop
 off passengers at 3 stops, count deliveries. Isometric, strictly grayscale.

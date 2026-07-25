@@ -1,7 +1,10 @@
 // Bus stops: procedural shelter/bay geometry + the boarding state machine.
 //
-//   IDLE ──bus within STOP_RADIUS and |v| < STOP_SPEED──▶ ALIGHTING
-//        ──▶ BOARDING ──▶ DEPARTING ──bus leaves radius──▶ IDLE
+//   IDLE ──bus within STOP_RADIUS and |v| < STOP_SPEED──▶ SERVING
+//        ──▶ DEPARTING ──bus leaves radius──▶ IDLE
+//
+// SERVING runs both flows at once on independent timers: passengers leave
+// through the exit door while the queue boards through the rear ones.
 
 import * as THREE from 'three';
 import { CFG } from './config.js';
@@ -9,7 +12,7 @@ import { G, lambert } from './palette.js';
 import { frameAt } from './track.js';
 import { spawnWaiting, startBoarding, spawnAlighting } from './passengers.js';
 
-export const IDLE = 0, ALIGHTING = 1, BOARDING = 2, DEPARTING = 3;
+export const IDLE = 0, SERVING = 1, DEPARTING = 2;
 export const stops = [];
 
 const RH = CFG.ROAD_HALF;
@@ -80,7 +83,8 @@ export function buildStops(scene) {
       heading: f.heading,
       queue: [],
       state: IDLE,
-      timer: 0,
+      alightT: 0,
+      boardT: 0,
       dwell: 0,
       _slot: new THREE.Vector3(),
     };
@@ -100,14 +104,11 @@ function slotPos(stop, i, out) {
   return out.copy(stop.queueBase).addScaledVector(stop.fwd, -i * 0.85);
 }
 
-const _door = new THREE.Vector3();
-const _right = new THREE.Vector3();
-
 // dt: real seconds. rs: interpolated bus render state. v: signed speed.
-// game: { delivered, onboard[] }. Returns a HUD prompt string or null.
-export function updateStops(dt, rs, v, game, doorWorld, rightWorld) {
-  _door.copy(doorWorld);
-  _right.copy(rightWorld);
+// game: { delivered, onboard[] }. doors: live door poses from bus.js.
+// Returns a HUD prompt string or null.
+export function updateStops(dt, rs, v, game, doors) {
+  const exitDoor = doors.find(d => d.use === 'exit') ?? doors[0];
   let prompt = null;
 
   for (const stop of stops) {
@@ -134,46 +135,47 @@ export function updateStops(dt, rs, v, game, doorWorld, rightWorld) {
 
     if (!inZone) {
       stop.state = IDLE;
-      stop.timer = stop.dwell = 0;
+      stop.alightT = stop.boardT = stop.dwell = 0;
     } else {
       const waitingHere = () => game.onboard.reduce((n, d) => n + (d === stop.i ? 1 : 0), 0);
 
       switch (stop.state) {
         case IDLE:
-          if (slow) { stop.state = ALIGHTING; stop.timer = 0; stop.dwell = 0; }
+          if (slow) { stop.state = SERVING; stop.alightT = stop.boardT = stop.dwell = 0; }
           break;
 
-        case ALIGHTING:
+        case SERVING: {
           stop.dwell += dt;
-          stop.timer += dt;
-          if (stop.timer >= CFG.ALIGHT_EVERY) {
-            stop.timer -= CFG.ALIGHT_EVERY;
+
+          // out through the exit door
+          stop.alightT += dt;
+          if (stop.alightT >= CFG.ALIGHT_EVERY) {
+            stop.alightT -= CFG.ALIGHT_EVERY;
             const idx = game.onboard.indexOf(stop.i);
             if (idx >= 0) {
               game.onboard.splice(idx, 1);
               game.delivered++;
-              spawnAlighting(_door, _right);
+              spawnAlighting(exitDoor);
             }
           }
-          if (waitingHere() === 0) { stop.state = BOARDING; stop.timer = 0; }
-          break;
 
-        case BOARDING:
-          stop.dwell += dt;
-          stop.timer += dt;
-          if (stop.timer >= CFG.BOARD_EVERY) {
-            stop.timer -= CFG.BOARD_EVERY;
+          // ...and in through the rear doors at the same time. A full bus
+          // blocks boarding for a tick, then resumes as alighting frees seats.
+          stop.boardT += dt;
+          if (stop.boardT >= CFG.BOARD_EVERY) {
+            stop.boardT -= CFG.BOARD_EVERY;
             if (stop.queue.length > 0 && game.onboard.length < CFG.CAPACITY) {
               const p = stop.queue.shift();
               game.onboard.push(p.dest);
               startBoarding(p);
             }
           }
-          if ((stop.queue.length === 0 || game.onboard.length >= CFG.CAPACITY)
-            && stop.dwell >= CFG.MIN_DWELL) {
-            stop.state = DEPARTING;
-          }
+
+          const doneOff = waitingHere() === 0;
+          const doneOn = stop.queue.length === 0 || game.onboard.length >= CFG.CAPACITY;
+          if (doneOff && doneOn && stop.dwell >= CFG.MIN_DWELL) stop.state = DEPARTING;
           break;
+        }
 
         case DEPARTING:
           break; // held until the bus leaves the zone
@@ -183,7 +185,7 @@ export function updateStops(dt, rs, v, game, doorWorld, rightWorld) {
       const n = stop.i + 1;
       if (!slow && stop.state === IDLE) {
         prompt = `▼ STOP ${n} — slow to a stop`;
-      } else if (stop.state === ALIGHTING || stop.state === BOARDING) {
+      } else if (stop.state === SERVING) {
         const boarding = Math.min(stop.queue.length, CFG.CAPACITY - game.onboard.length);
         prompt = `▼ STOP ${n} — ${boarding} boarding, ${waitingHere()} alighting`;
       } else if (stop.state === DEPARTING) {

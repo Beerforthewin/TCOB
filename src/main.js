@@ -1,19 +1,18 @@
-import * as THREE from 'three';
 import { CFG } from './config.js';
 import { createScene, render, updateCamera, rotateView, snapCameraTo } from './scene.js';
 import { buildTrack } from './track.js';
 import { buildWorld } from './world.js';
-import { createBus, updateBus, getDoorWorld, getRightWorld } from './bus.js';
+import { createBus, updateBus, getDoors } from './bus.js';
 import * as P from './physics.js';
 import { initInput, sampleInput, consumeTaps } from './input.js';
-import { buildStops, updateStops } from './stops.js';
-import { initPassengers, updatePassengers, setDoorPos } from './passengers.js';
+import { buildStops, updateStops, stops, SERVING } from './stops.js';
+import { initPassengers, updatePassengers, setDoors } from './passengers.js';
 import { initHud, updateHud } from './hud.js';
 
 const { scene } = createScene();
 buildTrack(scene);
 buildWorld(scene);
-createBus(scene);
+await createBus(scene);   // async: CFG.BUS_MODEL may put a GLB in flight
 initPassengers(scene);
 buildStops(scene);
 initInput();
@@ -23,8 +22,6 @@ const game = { delivered: 0, onboard: [] };   // onboard = array of destination 
 
 // module-scope scratch — nothing is allocated in the frame loop
 const rs = { x: 0, z: 0, psi1: 0, psiVis: 0 };
-const door = new THREE.Vector3();
-const right = new THREE.Vector3();
 
 P.resetToTrack(CFG.BUS_START_T);
 P.getRenderState(1, rs);
@@ -57,11 +54,10 @@ function frame(now) {
   P.getRenderState(acc / CFG.STEP, rs);
   updateBus(rs, P.state);
 
-  getDoorWorld(rs, door);
-  getRightWorld(rs, right);
-  setDoorPos(door);
+  const doors = getDoors(rs);
+  setDoors(doors);
 
-  const prompt = updateStops(dt, rs, P.state.v, game, door, right);
+  const prompt = updateStops(dt, rs, P.state.v, game, doors);
   updatePassengers(dt);
   updateCamera(dt, rs, P.state.v);
   updateHud(game, P.state, prompt);
@@ -71,4 +67,4 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // exposed for automated verification only
-window.__game = { game, state: P.state, rs, scene };
+window.__game = { game, state: P.state, rs, scene, stops, getDoors, SERVING };

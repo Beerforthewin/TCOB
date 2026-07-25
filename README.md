@@ -1,4 +1,4 @@
-# LOOP LINE
+# THE CIRCLE OF BUS
 
 **▶ Play: https://beerforthewin.github.io/TCOB/**
 
@@ -21,8 +21,28 @@ python -m http.server 8000
 Then open the printed URL. ES modules need `http://`, so opening `index.html` from the
 filesystem directly will not work.
 
-three.js r169 is pulled from unpkg via an importmap, so the first load needs a network
-connection. There is nothing to install.
+three.js r169 is vendored in `vendor/` and resolved through the importmap in `index.html`,
+so the page works fully offline. There is nothing to install.
+
+## Layout
+
+```
+index.html            importmap + HUD markup
+style.css
+src/                  game modules (ES modules, import 'three')
+  assets/
+    bus-front.glb     modelled bus, front section  (origin = drive axle)
+    bus-rear.glb      modelled bus, rear section   (origin = articulation pivot)
+vendor/
+  three.module.js               three.js r169, full unmodified build
+  addons/utils/BufferGeometryUtils.js   three.js r169 addon, unmodified
+```
+
+Both vendored files are the stock r169 releases (`build/three.module.js` and
+`examples/jsm/utils/BufferGeometryUtils.js`), copied verbatim — no tree-shaking, no
+minification, so the whole three.js API is available. To upgrade, drop in the two files from
+a newer release; `three/addons/` maps to `vendor/addons/`, mirroring `examples/jsm/`, so
+additional addons can be copied in at their upstream paths and imported unchanged.
 
 ## Controls
 
@@ -35,8 +55,10 @@ connection. There is nothing to install.
 | `Q` / `E` | Rotate the isometric view 90°. Controls stay vehicle-relative — rotating the view never changes what `W`/`A`/`D` do |
 | `R` | Reset the bus to the nearest point on the loop |
 
-Stop within 9 m of a stop and slow below 0.5 m/s to open the doors. Passengers bound for that
-stop get off first, then the queue boards until the bus hits 24.
+Stop within 9 m of a stop and slow below 0.5 m/s to open the doors. The bus works both flows at
+once: passengers bound for that stop get off through the front door while the queue boards
+through the two rear doors, until the bus hits 24. A full bus stalls boarding until someone
+gets off.
 
 ### Touch / mobile
 

@@ -10,13 +10,13 @@ const headGeo = new THREE.SphereGeometry(0.18, 8, 6);
 
 const UP = new THREE.Vector3(0, 1, 0);
 const list = [];
-const doorPos = new THREE.Vector3();
+let doorsRef = null;
 let sceneRef = null;
 
 export function initPassengers(scene) { sceneRef = scene; }
 
-// Live front-door world position — boarding walkers steer toward it.
-export function setDoorPos(v) { doorPos.copy(v); }
+// Live door poses from bus.js — boarding walkers steer toward one of them.
+export function setDoors(d) { doorsRef = d; }
 
 function makeFigure(gval) {
   const mat = lambert(gval, true);
@@ -55,29 +55,42 @@ export function spawnWaiting(stop, dest, slot) {
   return p;
 }
 
+// Send a boarder to whichever boarding door is closest to where they stand —
+// the queue is long enough that the tail is genuinely nearer the rear door.
+// The index is kept, not the position: doors keep moving as the bus settles.
 export function startBoarding(p) {
   p.mode = 'board';
+  p.door = -1;
+  let best = Infinity;
+  for (let i = 0; i < doorsRef.length; i++) {
+    if (doorsRef[i].use !== 'board') continue;
+    const dx = doorsRef[i].pos.x - p.grp.position.x;
+    const dz = doorsRef[i].pos.z - p.grp.position.z;
+    const q = dx * dx + dz * dz;
+    if (q < best) { best = q; p.door = i; }
+  }
+  if (p.door < 0) p.door = 0;            // no boarding door configured — use any
 }
 
-// Cosmetic figure that steps out of the door and scatters.
-export function spawnAlighting(door, right) {
+// Cosmetic figure that steps out of the exit door and scatters.
+export function spawnAlighting(door) {
   const f = makeFigure(0.30 + Math.random() * 0.15);
   const a = Math.random() * Math.PI - Math.PI / 2;   // ±90° about the door side
   const dist = CFG.SCATTER_MIN + Math.random() * (CFG.SCATTER_MAX - CFG.SCATTER_MIN);
-  const dir = right.clone().applyAxisAngle(UP, a);
+  const dir = door.right.clone().applyAxisAngle(UP, a);
   const p = {
     ...f,
     mode: 'alight',
     dest: -1,
     stopHeading: 0,
     slot: new THREE.Vector3(),
-    target: door.clone().addScaledVector(dir, dist),
+    target: door.pos.clone().addScaledVector(dir, dist),
     phase: Math.random() * Math.PI * 2,
     walk: 0,
     fadeT: 0,
     dead: false,
   };
-  p.grp.position.copy(door);
+  p.grp.position.copy(door.pos);
   list.push(p);
   return p;
 }
@@ -118,7 +131,7 @@ export function updatePassengers(dt) {
       }
 
     } else if (p.mode === 'board') {
-      const dist = stepToward(p, doorPos, dt, CFG.WALK_SPEED);
+      const dist = stepToward(p, doorsRef[p.door].pos, dt, CFG.WALK_SPEED);
       p.grp.position.y = Math.abs(Math.sin(p.walk * 5)) * 0.045;
       if (dist < 0.4) kill(p);
 

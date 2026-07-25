@@ -10,13 +10,51 @@ export const CFG = Object.freeze({
   LANE_OFFSET: 2.25,         // m     — right-lane center offset from centerline
 
   // ---------- bus dimensions ----------
-  L1: 5.9,                   // m     — front section: steer axle -> drive axle
-  L2: 5.5,                   // m     — rear section: pivot -> trailing axle
-  HITCH_D: 0.5,              // m     — drive axle -> pivot (positive = behind axle)
+  // Measured off the Blender model — these ARE the handling geometry, not just
+  // where the wheels are drawn. Re-measure if you move an axle again.
+  L1: 4.444,                 // m     — front section: steer axle -> drive axle
+  L2: 6.0,                   // m     — rear section: pivot -> trailing axle
+  HITCH_D: 1.956,            // m     — drive axle -> pivot (positive = behind axle)
   BUS_W: 2.55,               // m     — body width
   WHEEL_R: 0.5,              // m     — wheel radius
   DOOR_X: 4.6,               // m     — front door, local X from drive axle
   DOOR_Z: 1.45,              // m     — front door, local Z (right side)
+
+  // Service doors, bus-local metres. `sec` says which section the door is bolted
+  // to — a 'rear' door swings with the trailing unit, so its world position has
+  // to come off the rear pose, not the front. `use` is 'exit' or 'board':
+  // passengers get off through the exit door and on through the others, at the
+  // same time. These match the procedural body; a GLB overrides them below.
+  DOORS: [
+    { sec: 'front', x: 4.6, z: 1.45, use: 'exit' },
+    { sec: 'front', x: 0.8, z: 1.45, use: 'board' },
+    { sec: 'rear', x: -2.2, z: 1.45, use: 'board' },
+  ],
+
+  // ---------- bus geometry source ----------
+  // null = procedural boxes (see bus.js). Point front/rear at GLB files under
+  // src/assets/ to swap in modelled geometry; MATERIALS ARE ALWAYS CODE-SIDE,
+  // whatever the file contains is discarded. Model to the dimensions above:
+  // forward +X, right +Z, up +Y; front origin at the drive axle, rear origin at
+  // the articulation pivot. Name wheel nodes *wheel*, and the two steering ones
+  // *wheel_steer* — they get spin and steer groups built around them on load.
+  BUS_MODEL: {
+    front: 'assets/bus-front.glb',
+    rear: 'assets/bus-rear.glb',
+    bootRing: null,          // optional single accordion ring; else a box
+    scale: 1,                //       — uniform correction if not modelled in metres
+    frontOffset: [0, 0, 0],  // m     — origin correction, front-local
+    rearOffset: [0, 0, 0],   // m     — origin correction, rear-local
+    flatShading: false,      //       — GLB only; true to facet it like the rest of the world
+    bootA: -1.556,           // m     — front body rear face, drive-axle local (null = procedural)
+    bootB: -0.85,            // m     — rear body front face, pivot local     (null = procedural)
+    // Measured off the REF_passenger_door_* empties in the .blend.
+    doors: [
+      { sec: 'front', x: 6.096, z: 1.45, use: 'exit' },
+      { sec: 'front', x: 1.292, z: 1.45, use: 'board' },
+      { sec: 'rear', x: -2.695, z: 1.45, use: 'board' },
+    ],
+  },
 
   // ---------- longitudinal ----------
   A_MAX: 2.2,                // m/s²  — max acceleration
